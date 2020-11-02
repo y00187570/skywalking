@@ -18,21 +18,27 @@
 
 package org.apache.skywalking.oap.server.receiver.envoy.als;
 
-import io.envoyproxy.envoy.data.accesslog.v2.HTTPAccessLogEntry;
+import io.envoyproxy.envoy.api.v2.core.Node;
 import io.envoyproxy.envoy.service.accesslog.v2.StreamAccessLogsMessage;
-import java.util.List;
-import org.apache.skywalking.apm.network.servicemesh.v3.ServiceMeshMetric;
-import org.apache.skywalking.oap.server.receiver.envoy.EnvoyMetricReceiverConfig;
 
-/**
- * Analysis source metrics from ALS
- */
-public interface ALSHTTPAnalysis {
-    String name();
+public abstract class AbstractALSAnalyzer implements ALSHTTPAnalysis {
 
-    void init(EnvoyMetricReceiverConfig config);
+    @Override
+    public Role identify(final StreamAccessLogsMessage.Identifier alsIdentifier, final Role defaultRole) {
+        if (alsIdentifier == null) {
+            return defaultRole;
+        }
+        final Node node = alsIdentifier.getNode();
+        if (node == null) {
+            return defaultRole;
+        }
+        final String id = node.getId();
+        if (id.startsWith("router~")) {
+            return Role.PROXY;
+        } else if (id.startsWith("sidecar~")) {
+            return Role.SIDECAR;
+        }
+        return defaultRole;
+    }
 
-    List<ServiceMeshMetric.Builder> analysis(StreamAccessLogsMessage.Identifier identifier, HTTPAccessLogEntry entry, Role role);
-
-    Role identify(StreamAccessLogsMessage.Identifier alsIdentifier, Role prev);
 }
